@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>名偵探動詞事件簿</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;family=Poppins:wght@600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+        .font-poppins { font-family: 'Poppins', sans-serif; }
+        .main-container { max-width: 900px; }
+        .card {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+        .btn {
+            background-image: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+            color: white; padding: 12px 28px; border-radius: 9999px; font-weight: 700;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            border: none; cursor: pointer;
+        }
+        .btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 6px 20px rgba(231, 76, 60, 0.5); }
+        .btn:disabled { background-image: none; background-color: #bdc3c7; cursor: not-allowed; box-shadow: none; }
+        .btn-secondary { background-image: linear-gradient(90deg, #3498db 0%, #2980b9 100%); box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4); }
+        .btn-secondary:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5); }
+        
+        #flashcard-view-container { perspective: 1000px; display: flex; justify-content: center; align-items: center; width: 100%; flex-grow: 1; }
+        #flashcard {
+            width: 100%; max-width: 400px; height: 250px; position: relative;
+            transform-style: preserve-3d; transition: transform 0.6s; cursor: pointer;
+        }
+        #flashcard.is-flipped { transform: rotateY(180deg); }
+        .flashcard-face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; padding: 20px;
+            border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        #flashcard-front { background: linear-gradient(135deg, #ffffff 0%, #ecf0f1 100%); }
+        #flashcard-back { background: linear-gradient(135deg, #90a4ae 0%, #78909c 100%); color: white; transform: rotateY(180deg); }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal.show { opacity: 1; visibility: visible; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        
+        .collection-item { border: 2px solid #bdc3c7; filter: grayscale(100%); opacity: 0.6; }
+        .collection-item.unlocked { border: 2px solid #3498db; filter: grayscale(0%); opacity: 1; }
+        
+        .control-btn {
+            position: absolute; top: 1.25rem; left: 1.25rem;
+            background: rgba(0,0,0,0.1); border-radius: 50%;
+            width: 40px; height: 40px; display: flex;
+            align-items: center; justify-content: center;
+            cursor: pointer; transition: background 0.2s; z-index: 10;
+        }
+        .control-btn:hover { background: rgba(0,0,0,0.2); }
+        .sound-toggle-btn { left: auto; right: 1.25rem; }
+        
+        .triad-btn { transition: all 0.2s; }
+        .triad-btn.correct { background-image: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%) !important; color: white !important; }
+        .triad-btn.incorrect { background-image: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%) !important; color: white !important; opacity: 0.7; }
+
+        .spelling-input {
+            border: 2px solid #3498db; text-align: center;
+            border-radius: 12px; padding: 10px 16px; font-size: 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: all 0.3s ease;
+        }
+        .spelling-input:focus {
+            outline: none; border-color: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.2);
+        }
+        
+        .memory-card {
+            aspect-ratio: 1 / 1;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+            cursor: pointer;
+        }
+        .memory-card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .memory-card.is-matched {
+            cursor: default;
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .memory-card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            font-size: clamp(1rem, 5vw, 1.5rem);
+            font-weight: bold;
+            padding: 4px;
+            word-break: break-all;
+            text-align: center;
+        }
+        .memory-card-front {
+            background: white;
+            transform: rotateY(180deg);
+            color: #34495e;
+        }
+        .memory-card-back {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            font-size: 2rem;
+        }
+
+        @media print {
+            body, html { background: #fff; }
+            body * { visibility: hidden; }
+            #printable-content, #printable-content * {
+                visibility: visible;
+                color: black;
+            }
+            #printable-content {
+                position: absolute;
+                left: 20px;
+                top: 20px;
+                right: 20px;
+                width: auto;
+                border: none;
+                font-size: 12pt;
+            }
+            .no-print { display: none; }
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.sticky{position:sticky}.top-0{top:0px}.mx-auto{margin-left:auto;margin-right:auto}.my-4{margin-top:1rem;margin-bottom:1rem}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-40{height:10rem}.max-h-\[60vh\]{max-height:60vh}.max-h-\[70vh\]{max-height:70vh}.min-h-\[32px\]{min-height:32px}.min-h-\[80px\]{min-height:80px}.min-h-screen{min-height:100vh}.w-11\/12{width:91.666667%}.w-40{width:10rem}.w-full{width:100%}.max-w-2xl{max-width:42rem}.max-w-4xl{max-width:56rem}.max-w-lg{max-width:32rem}.max-w-md{max-width:28rem}.flex-grow{flex-grow:1}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.rounded{border-radius:0.25rem}.rounded-lg{border-radius:0.5rem}.border{border-width:1px}.border-2{border-width:2px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-200{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.object-contain{object-fit:contain}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.pl-4{padding-left:1rem}.pt-4{padding-top:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11 / var(--tw-text-opacity, 1))}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-blue-900{--tw-text-opacity:1;color:rgb(30 58 138 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.underline{-webkit-text-decoration-line:underline;text-decoration-line:underline}.decoration-dotted{-webkit-text-decoration-style:dotted;text-decoration-style:dotted}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.focus\:border-blue-500:focus{--tw-border-opacity:1;border-color:rgb(59 130 246 / var(--tw-border-opacity, 1))}.focus\:ring:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-blue-200:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(191 219 254 / var(--tw-ring-opacity, 1))}@media (min-width: 640px){.sm\:mt-0{margin-top:0px}.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.sm\:flex-row{flex-direction:row}.sm\:gap-4{gap:1rem}.sm\:text-left{text-align:left}}@media (min-width: 768px){.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:p-6{padding:1.5rem}.md\:text-2xl{font-size:1.5rem;line-height:2rem}.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}}@media (min-width: 1024px){.lg\:grid-cols-5{grid-template-columns:repeat(5, minmax(0, 1fr))}}</style><style id="tag-inspector-styles">
+                    .inspector-hover-outline { outline: 1px dotted #dc3545 !important; box-shadow: inset 0 0 0 1px #dc3545; }
+                    #tag-inspector-tooltip { position: fixed; display: none; background-color: #dc3545; color: white; padding: 2px 6px; font-size: 12px; border-radius: 4px; pointer-events: none; z-index: 9999; font-family: monospace; }
+                </style><style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.sticky{position:sticky}.top-0{top:0px}.mx-auto{margin-left:auto;margin-right:auto}.my-4{margin-top:1rem;margin-bottom:1rem}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-40{height:10rem}.max-h-\[60vh\]{max-height:60vh}.max-h-\[70vh\]{max-height:70vh}.min-h-\[32px\]{min-height:32px}.min-h-\[80px\]{min-height:80px}.min-h-screen{min-height:100vh}.w-11\/12{width:91.666667%}.w-40{width:10rem}.w-full{width:100%}.max-w-2xl{max-width:42rem}.max-w-4xl{max-width:56rem}.max-w-lg{max-width:32rem}.max-w-md{max-width:28rem}.flex-grow{flex-grow:1}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.rounded{border-radius:0.25rem}.rounded-lg{border-radius:0.5rem}.border{border-width:1px}.border-2{border-width:2px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-200{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.object-contain{object-fit:contain}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.pl-4{padding-left:1rem}.pt-4{padding-top:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11 / var(--tw-text-opacity, 1))}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-blue-900{--tw-text-opacity:1;color:rgb(30 58 138 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.underline{-webkit-text-decoration-line:underline;text-decoration-line:underline}.decoration-dotted{-webkit-text-decoration-style:dotted;text-decoration-style:dotted}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.focus\:border-blue-500:focus{--tw-border-opacity:1;border-color:rgb(59 130 246 / var(--tw-border-opacity, 1))}.focus\:ring:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-blue-200:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(191 219 254 / var(--tw-ring-opacity, 1))}@media (min-width: 640px){.sm\:mt-0{margin-top:0px}.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.sm\:flex-row{flex-direction:row}.sm\:gap-4{gap:1rem}.sm\:text-left{text-align:left}}@media (min-width: 768px){.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:p-6{padding:1.5rem}.md\:text-2xl{font-size:1.5rem;line-height:2rem}.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}}@media (min-width: 1024px){.lg\:grid-cols-5{grid-template-columns:repeat(5, minmax(0, 1fr))}}</style><style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.sticky{position:sticky}.top-0{top:0px}.mx-auto{margin-left:auto;margin-right:auto}.my-4{margin-top:1rem;margin-bottom:1rem}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-40{height:10rem}.h-24{height:6rem}.max-h-\[60vh\]{max-height:60vh}.max-h-\[70vh\]{max-height:70vh}.min-h-\[32px\]{min-height:32px}.min-h-\[80px\]{min-height:80px}.min-h-screen{min-height:100vh}.w-11\/12{width:91.666667%}.w-40{width:10rem}.w-full{width:100%}.w-24{width:6rem}.max-w-2xl{max-width:42rem}.max-w-4xl{max-width:56rem}.max-w-lg{max-width:32rem}.max-w-md{max-width:28rem}.flex-grow{flex-grow:1}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.rounded{border-radius:0.25rem}.rounded-lg{border-radius:0.5rem}.border{border-width:1px}.border-2{border-width:2px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-200{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.object-contain{object-fit:contain}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.pl-4{padding-left:1rem}.pt-4{padding-top:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11 / var(--tw-text-opacity, 1))}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-blue-900{--tw-text-opacity:1;color:rgb(30 58 138 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.underline{-webkit-text-decoration-line:underline;text-decoration-line:underline}.decoration-dotted{-webkit-text-decoration-style:dotted;text-decoration-style:dotted}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.focus\:border-blue-500:focus{--tw-border-opacity:1;border-color:rgb(59 130 246 / var(--tw-border-opacity, 1))}.focus\:ring:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-blue-200:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(191 219 254 / var(--tw-ring-opacity, 1))}@media (min-width: 640px){.sm\:mt-0{margin-top:0px}.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.sm\:flex-row{flex-direction:row}.sm\:gap-4{gap:1rem}.sm\:text-left{text-align:left}}@media (min-width: 768px){.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:p-6{padding:1.5rem}.md\:text-2xl{font-size:1.5rem;line-height:2rem}.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}}@media (min-width: 1024px){.lg\:grid-cols-5{grid-template-columns:repeat(5, minmax(0, 1fr))}}</style></head>
+<body class="flex flex-col items-center min-h-screen p-4" contenteditable="true">
+
+    <div id="app-container" class="main-container mx-auto p-4 md:p-6 space-y-6 w-full">
+        <!-- Header -->
+        <header class="card p-4 flex flex-col sm:flex-row justify-between items-center w-full">
+            <div class="text-center sm:text-left">
+                <h1 class="text-3xl font-bold text-blue-900 font-poppins">名偵探動詞事件簿</h1>
+                <p class="text-sm text-gray-500 mt-1">Made by 啾啾老師</p>
+            </div>
+            <div class="flex items-center space-x-4 text-lg font-semibold mt-2 sm:mt-0">
+                <div class=""><span class="text-gray-600">破案積分:</span> <span id="total-score" class="font-poppins text-red-500 text-xl">0</span></div>
+            </div>
+        </header>
+
+        <!-- Home View -->
+        <div id="home-view" class="w-full space-y-6">
+            <div class="card p-8 text-center">
+                 <div data-is-wrapper="true" style="text-align: center; margin-bottom: 1em;" class=""><img src="https://pic.616pic.com/ys_bnew_img/00/20/02/8NW2DcHRZk.jpg" alt="Conan Icon" class="mx-auto mb-4" style="width: 200px; display: inline-block; vertical-align: middle;"></div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">選擇要調查的案件檔案！</h2>
+                <div class="flex flex-col md:flex-row gap-4 my-6">
+                    <select id="level-select" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:ring focus:ring-blue-200 transition"><option value="">請選擇一個案件檔案...</option><option value="all">動詞三態總表</option><option value="level1">案件檔案 #1</option><option value="level2">案件檔案 #2</option><option value="level3">案件檔案 #3</option><option value="level4">案件檔案 #4</option><option value="level5">案件檔案 #5</option><option value="level6">案件檔案 #6</option><option value="level7">案件檔案 #7</option><option value="level8">案件檔案 #8</option><option value="level9">案件檔案 #9</option><option value="level10">案件檔案 #10</option><option value="level11">案件檔案 #11</option><option value="level12">案件檔案 #12</option><option value="level13">案件檔案 #13</option><option value="level14">案件檔案 #14</option><option value="level15">案件檔案 #15</option><option value="level16">案件檔案 #16</option><option value="level17">案件檔案 #17</option><option value="level18">案件檔案 #18</option><option value="level19">案件檔案 #19</option><option value="level20">案件檔案 #20</option><option value="level21">案件檔案 #21</option><option value="level22">案件檔案 #22</option></select>
+                </div>
+                <div id="game-buttons-container" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <button id="start-list-btn" class="btn w-full" disabled="">單字列表</button>
+                    <button id="start-flashcard-btn" class="btn w-full" disabled="">線索卡片</button>
+                    <button id="start-memory-btn" class="btn w-full" disabled="">動詞對對碰</button>
+                    <button id="start-triad-btn" class="btn w-full" disabled="">三態選擇</button>
+                    <button id="start-spelling-btn" class="btn w-full" disabled="">密碼破解</button>
+                    <button id="start-tense-quiz-btn" class="btn w-full" disabled="">時態測驗</button>
+                 </div>
+                 <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button id="show-collection-btn" class="btn btn-secondary">我的收藏冊</button>
+                    <button id="generate-sheet-btn" class="btn btn-secondary">生成溫習卷</button>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Word List View -->
+        <div id="word-list-view" class="w-full space-y-6 hidden">
+            <div class="card p-6">
+                <div class="control-btn back-btn">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </div>
+                <h2 id="word-list-title" class="text-2xl font-bold text-slate-800 mb-4 text-center"></h2>
+                <div class="max-h-[60vh] overflow-y-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-200 sticky top-0"><tr>
+                            <th class="p-2">#</th><th class="p-2">發音</th><th class="p-2">原形</th><th class="p-2">過去式</th><th class="p-2">過去分詞</th><th class="p-2">中文</th>
+                        </tr></thead>
+                        <tbody id="word-list-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flashcard View -->
+        <div id="flashcard-view" class="w-full flex-col items-center hidden">
+             <div class="w-full card p-6">
+                <div class="control-btn back-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </div>
+                <h2 id="flashcard-title" class="text-2xl font-bold text-slate-800 mb-4 text-center"></h2>
+                <div id="flashcard-view-container">
+                    <div id="flashcard">
+                        <div id="flashcard-front" class="flashcard-face"><p id="flashcard-front-text" class="text-4xl font-bold"></p></div>
+                        <div id="flashcard-back" class="flashcard-face text-center"><p id="flashcard-back-text" class="text-2xl font-semibold"></p></div>
+                    </div>
+                </div>
+                <p id="flashcard-progress" class="font-semibold text-center mt-4"></p>
+                <div class="flex items-center justify-center space-x-4 mt-4">
+                    <button id="prev-card-btn" class="btn btn-secondary">&lt; 上一張</button>
+                    <button id="next-card-btn" class="btn btn-secondary">下一張 &gt;</button>
+                </div>
+             </div>
+        </div>
+        
+        <!-- Memory Match Game View -->
+        <div id="memory-game-view" class="w-full space-y-4 hidden card p-6 text-center">
+            <div class="control-btn back-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></div>
+            <h2 id="memory-title" class="text-2xl font-bold text-slate-800 mb-4"></h2>
+            <div class="flex justify-around items-center text-lg font-semibold text-gray-600">
+                <span>配對成功: <span id="memory-pairs-matched">0</span> / <span id="memory-total-pairs">0</span></span>
+                <span>移動次數: <span id="memory-moves">0</span></span>
+            </div>
+            <div id="memory-grid-container" class="w-full max-w-2xl mx-auto" style="perspective: 1000px;">
+                <div id="memory-grid" class="grid grid-cols-4 gap-2 sm:gap-4">
+                    <!-- Cards are generated by JS -->
+                </div>
+            </div>
+             <div id="memory-feedback" class="mt-4 text-xl font-bold min-h-[32px]"></div>
+        </div>
+        
+        <!-- Triad Select Game View -->
+        <div id="triad-select-view" class="w-full space-y-4 hidden card p-6 text-center">
+            <div class="control-btn back-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></div>
+            <div id="triad-sound-toggle" class="control-btn sound-toggle-btn"></div>
+            <h2 id="triad-title" class="text-2xl font-bold text-slate-800 mb-4"></h2>
+            <div class="text-lg font-semibold text-gray-600">進度: <span id="triad-progress">1/10</span> | 分數: <span id="triad-score">0</span></div>
+            <div class="text-2xl md:text-3xl p-4 bg-blue-100 rounded-lg my-4 font-bold">
+                <span id="triad-prompt-verb"></span>: 
+                <span id="triad-past-answer" class="text-red-500 underline decoration-dotted">____</span>, 
+                <span id="triad-pp-answer" class="text-red-500 underline decoration-dotted">____</span>
+            </div>
+            <div id="triad-options" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-lg mx-auto"></div>
+            <div id="triad-feedback" class="mt-4 text-xl font-bold min-h-[32px]"></div>
+        </div>
+
+        <!-- Spelling Game View -->
+        <div id="spelling-game-view" class="w-full space-y-4 hidden card p-6 text-center">
+            <div class="control-btn back-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></div>
+            <h2 id="spelling-title" class="text-2xl font-bold text-slate-800 mb-4"></h2>
+            <div class="text-lg font-semibold text-gray-600">進度: <span id="spelling-progress">1/10</span> | 分數: <span id="spelling-score">0</span></div>
+            <div id="spelling-prompt" class="flex flex-wrap items-center justify-center gap-4 text-2xl md:text-3xl p-4 bg-blue-100 rounded-lg my-4 font-bold">
+            </div>
+            <div class="flex justify-center items-center gap-4">
+                <button id="spelling-hint-btn" class="btn btn-secondary">提示</button>
+                <div id="spelling-feedback" class="text-xl font-bold min-h-[32px] flex-grow text-left pl-4"></div>
+                <button id="spelling-submit-btn" class="btn" style="background-image: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);">提交</button>
+            </div>
+        </div>
+        
+        <!-- Tense Quiz Game View -->
+        <div id="tense-quiz-view" class="w-full space-y-4 hidden card p-6 text-center">
+            <div class="control-btn back-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></div>
+             <h2 id="tense-quiz-title" class="text-2xl font-bold text-slate-800 mb-4"></h2>
+             <div class="text-lg font-semibold text-gray-600">進度: <span id="tense-quiz-progress">1/10</span></div>
+             <p id="tense-quiz-sentence" class="text-xl md:text-2xl p-4 bg-gray-100 rounded-lg my-4 min-h-[80px] flex items-center justify-center"></p>
+             <div id="tense-quiz-options" class="grid grid-cols-2 gap-4 max-w-md mx-auto"></div>
+             <div id="tense-quiz-feedback" class="mt-4 text-xl font-bold min-h-[32px]"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="results-modal" class="modal"><div class="card p-8 w-11/12 max-w-md text-center space-y-4 fade-in"><h3 id="results-title" class="text-3xl font-bold text-blue-800 font-poppins"></h3><p id="results-message" class="text-xl"></p><p class="text-lg">獲得積分: <span id="results-score" class="font-bold text-red-500 font-poppins text-2xl"></span></p><div class="flex justify-center gap-4 pt-4"><button id="modal-retry-btn" class="btn btn-secondary">再次挑戰</button><button id="modal-menu-btn" class="btn">返回主選單</button></div></div></div>
+    <div id="sheet-generator-modal" class="modal"><div class="card p-8 w-11/12 max-w-md text-center space-y-4 fade-in"><h3 class="text-2xl font-bold">生成溫習卷</h3><p>請選擇要做為考卷的案件檔案：</p><select id="sheet-level-select" class="w-full p-2 border rounded-lg text-lg"></select><div class="flex justify-center gap-4 pt-4"><button id="generate-sheet-confirm-btn" class="btn">開始製作</button><button id="close-sheet-modal-btn" class="btn btn-secondary">取消</button></div></div></div>
+    <div id="collection-modal" class="modal show"><div class="card p-6 w-11/12 max-w-4xl text-left space-y-4 bg-white"><h2 class="text-2xl font-bold text-center">我的收藏冊</h2><div id="collection-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[70vh] overflow-y-auto p-4">
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://shopping.line-scdn.net/0h1B_QScrzbm1iKHj4ubMROjB1chwKXjd6HRB0TxVtLg5KHChuC04mWEMgNllIGSEzV0coXEMuOQhGHCkzCRwiZUYpYFlHGSkzXRwlDEItdVwbG31sCx1z" alt="偵探徽章" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';" style="width: 96px; display: block; margin: 0px auto 1em;">
+                    <p class="font-bold">偵探徽章</p><p class="text-xs text-gray-500">需 50 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://res.klook.com/image/upload/v1686125726/sepb3miaklyc0htxp9zk.jpg" alt="手錶型麻醉槍" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';" style="width: 150px; display: block; margin: 0px auto 1em;">
+                    <p class="font-bold">手錶型麻醉槍</p><p class="text-xs text-gray-500">需 100 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/emoji/96/running-shoe.png" alt="腳力增強鞋" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">腳力增強鞋</p><p class="text-xs text-gray-500">需 150 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://shoplineimg.com/655b2abc20c68e008a0368c6/655d7805080c95001ea20e92/800x.jpg?" alt="蝴蝶結變聲器" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';" style="width: 96px; display: block; margin: 0px auto 1em;">
+                    <p class="font-bold">蝴蝶結變聲器</p><p class="text-xs text-gray-500">需 200 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://cdn0.techbang.com/system/images/319970/original/1d6d4496296325070349a38cf7b2aed4.jpg?1443668273" alt="犯人追蹤眼鏡" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';" style="width: 96px; display: block; margin: 0px auto 1em;">
+                    <p class="font-bold">犯人追蹤眼鏡</p><p class="text-xs text-gray-500">需 250 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://cdn.suruga-ya.com/database/pics_webp/game/994501321.jpg.webp" alt="太陽能滑板" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';" style="width: 96px; display: block; margin: 0px auto 1em;">
+                    <p class="font-bold">太陽能滑板</p><p class="text-xs text-gray-500">需 300 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/plasticine/100/000000/detective.png" alt="阿笠博士" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">阿笠博士</p><p class="text-xs text-gray-500">需 400 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-karate-martial-arts-flaticons-flat-flat-icons.png" alt="毛利蘭" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">毛利蘭</p><p class="text-xs text-gray-500">需 500 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/plasticine/100/000000/detective.png" alt="毛利小五郎" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">毛利小五郎</p><p class="text-xs text-gray-500">需 600 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/fluency/96/children.png" alt="少年偵探團" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">少年偵探團</p><p class="text-xs text-gray-500">需 750 積分</p>
+                </div>
+                <div class="collection-item  p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/external-flatart-icons-lineal-color-flatarticons/64/external-letter-valentines-day-flatart-icons-lineal-color-flatarticons.png" alt="怪盜基德的預告信" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">怪盜基德的預告信</p><p class="text-xs text-gray-500">需 900 積分</p>
+                </div>
+                <div class="collection-item p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="https://img.icons8.com/fluency/96/pill.png" alt="APTX-4869" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">APTX-4869</p><p class="text-xs text-gray-500">需 1000 積分</p>
+                </div></div><div class="flex justify-end gap-4 pt-4 border-t no-print"><button id="close-collection-modal" class="btn">關閉</button></div></div></div>
+    <div id="new-item-modal" class="modal"><div class="card p-8 w-11/12 max-w-md text-center space-y-4 fade-in"><h3 class="text-3xl font-bold text-amber-500 font-poppins">恭喜！</h3><p class="text-xl">你解鎖了新的收藏品！</p><img id="new-item-image" src="" alt="New item" class="mx-auto h-40 w-40 object-contain"><p id="new-item-name" class="text-2xl font-bold"></p><button id="close-new-item-modal" class="btn w-full">太棒了！</button></div></div>
+    <div id="printable-view-modal" class="modal"><div class="card p-6 w-11/12 max-w-4xl text-left space-y-4 bg-white"><div class="no-print"><h2 class="text-2xl font-bold text-center">溫習卷預覽</h2></div><div id="printable-content" class="max-h-[70vh] overflow-y-auto p-4 border rounded bg-white text-black"></div><div class="flex justify-end gap-4 pt-4 border-t no-print"><button id="print-sheet-btn" class="btn">列印</button><button id="close-printable-modal-btn" class="btn btn-secondary">關閉</button></div></div></div>
+    
+
+    <script>
+        // --- DATA SECTION ---
+        const collectibles = [
+            { id: 1, name: '偵探徽章', score: 50, img: 'https://img.icons8.com/fluency/96/detective.png' },
+            { id: 2, name: '手錶型麻醉槍', score: 100, img: 'https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-smart-watch-ux-and-ui-flaticons-lineal-color-flat-icons-2.png' },
+            { id: 3, name: '腳力增強鞋', score: 150, img: 'https://img.icons8.com/emoji/96/running-shoe.png' },
+            { id: 4, name: '蝴蝶結變聲器', score: 200, img: 'https://img.icons8.com/fluency/96/bowtie.png' },
+            { id: 5, name: '犯人追蹤眼鏡', score: 250, img: 'https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-smart-glasses-augmented-reality-flaticons-flat-flat-icons.png' },
+            { id: 6, name: '太陽能滑板', score: 300, img: 'https://img.icons8.com/fluency/96/skateboard.png' },
+            { id: 7, name: '阿笠博士', score: 400, img: 'https://img.icons8.com/external-icongeek26-flat-icongeek26/64/external-scientist-professions-icongeek26-flat-icongeek26.png' },
+            { id: 8, name: '毛利蘭', score: 500, img: 'https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-karate-martial-arts-flaticons-flat-flat-icons.png' },
+            { id: 9, name: '毛利小五郎', score: 600, img: 'https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-detective-agency-flaticons-lineal-color-flat-icons.png' },
+            { id: 10, name: '少年偵探團', score: 750, img: 'https://img.icons8.com/fluency/96/children.png' },
+            { id: 11, name: '怪盜基德的預告信', score: 900, img: 'https://img.icons8.com/external-flatart-icons-lineal-color-flatarticons/64/external-letter-valentines-day-flatart-icons-lineal-color-flatarticons.png' },
+            { id: 12, name: 'APTX-4869', score: 1000, img: 'https://img.icons8.com/fluency/96/pill.png' },
+        ];
+        
+        const allVerbs = [
+            { base: 'agree', past: 'agreed', pp: 'agreed', chinese: '同意' }, { base: 'answer', past: 'answered', pp: 'answered', chinese: '回答' }, { base: 'appear', past: 'appeared', pp: 'appeared', chinese: '出現' }, { base: 'arrive', past: 'arrived', pp: 'arrived', chinese: '到達' }, { base: 'ask', past: 'asked', pp: 'asked', chinese: '詢問' }, { base: 'eat', past: 'ate', pp: 'eaten', chinese: '吃' }, { base: 'go', past: 'went', pp: 'gone', chinese: '去' }, { base: 'see', past: 'saw', pp: 'seen', chinese: '看見' }, { base: 'take', past: 'took', pp: 'taken', chinese: '拿' }, { base: 'write', past: 'wrote', pp: 'written', chinese: '寫' }, { base: 'barbecue', past: 'barbecued', pp: 'barbecued', chinese: '烤肉' }, { base: 'bark', past: 'barked', pp: 'barked', chinese: '吠' }, { base: 'believe', past: 'believed', pp: 'believed', chinese: '相信' }, { base: 'book', past: 'booked', pp: 'booked', chinese: '訂票' }, { base: 'brush', past: 'brushed', pp: 'brushed', chinese: '刷' }, { base: 'bump', past: 'bumped', pp: 'bumped', chinese: '碰撞' }, { base: 'call', past: 'called', pp: 'called', chinese: '打電話' }, { base: 'camp', past: 'camped', pp: 'camped', chinese: '露營' }, { base: 'cause', past: 'caused', pp: 'caused', chinese: '造成' }, { base: 'chat', past: 'chatted', pp: 'chatted', chinese: '聊天' }, { base: 'check', past: 'checked', pp: 'checked', chinese: '查看' }, { base: 'clean', past: 'cleaned', pp: 'cleaned', chinese: '打掃' }, { base: 'climb', past: 'climbed', pp: 'climbed', chinese: '攀登' }, { base: 'close', past: 'closed', pp: 'closed', chinese: '關上' }, { base: 'collect', past: 'collected', pp: 'collected', chinese: '收集' }, { base: 'color', past: 'colored', pp: 'colored', chinese: '著色' }, { base: 'continue', past: 'continued', pp: 'continued', chinese: '繼續' }, { base: 'cook', past: 'cooked', pp: 'cooked', chinese: '烹飪' }, { base: 'count', past: 'counted', pp: 'counted', chinese: '數數' }, { base: 'cry', past: 'cried', pp: 'cried', chinese: '哭泣' }, { base: 'damage', past: 'damaged', pp: 'damaged', chinese: '損毀' }, { base: 'dance', past: 'danced', pp: 'danced', chinese: '跳舞' }, { base: 'decide', past: 'decided', pp: 'decided', chinese: '決定' }, { base: 'design', past: 'designed', pp: 'designed', chinese: '設計' }, { base: 'destroy', past: 'destroyed', pp: 'destroyed', chinese: '破壞' }, { base: 'dial', past: 'dialed', pp: 'dialed', chinese: '撥號' }, { base: 'die', past: 'died', pp: 'died', chinese: '死亡' }, { base: 'donate', past: 'donated', pp: 'donated', chinese: '捐贈' }, { base: 'dream', past: 'dreamed', pp: 'dreamed', chinese: '夢想' }, { base: 'dress', past: 'dressed', pp: 'dressed', chinese: '穿著' }, { base: 'enjoy', past: 'enjoyed', pp: 'enjoyed', chinese: '享受' }, { base: 'enter', past: 'entered', pp: 'entered', chinese: '進入' }, { base: 'excuse', past: 'excused', pp: 'excused', chinese: '原諒' }, { base: 'exercise', past: 'exercised', pp: 'exercised', chinese: '運動' }, { base: 'experience', past: 'experienced', pp: 'experienced', chinese: '經歷' }, { base: 'fix', past: 'fixed', pp: 'fixed', chinese: '修理' }, { base: 'follow', past: 'followed', pp: 'followed', chinese: '跟隨' }, { base: 'form', past: 'formed', pp: 'formed', chinese: '組織' }, { base: 'graduate', past: 'graduated', pp: 'graduated', chinese: '畢業' }, { base: 'guess', past: 'guessed', pp: 'guessed', chinese: '猜測' }, { base: 'hand', past: 'handed', pp: 'handed', chinese: '遞給' }, { base: 'happen', past: 'happened', pp: 'happened', chinese: '發生' }, { base: 'hate', past: 'hated', pp: 'hated', chinese: '討厭' }, { base: 'help', past: 'helped', pp: 'helped', chinese: '幫忙' }, { base: 'hike', past: 'hiked', pp: 'hiked', chinese: '健行' }, { base: 'hope', past: 'hoped', pp: 'hoped', chinese: '希望' }, { base: 'hurry', past: 'hurried', pp: 'hurried', chinese: '加快' }, { base: 'invite', past: 'invited', pp: 'invited', chinese: '邀請' }, { base: 'jog', past: 'jogged', pp: 'jogged', chinese: '慢跑' }, { base: 'join', past: 'joined', pp: 'joined', chinese: '參加' }, { base: 'jump', past: 'jumped', pp: 'jumped', chinese: '跳' }, { base: 'knock', past: 'knocked', pp: 'knocked', chinese: '敲' }, { base: 'learn', past: 'learned', pp: 'learned', chinese: '學習' }, { base: 'light', past: 'lighted', pp: 'lighted', chinese: '點燃' }, { base: 'like', past: 'liked', pp: 'liked', chinese: '喜歡' }, { base: 'listen', past: 'listened', pp: 'listened', chinese: '聆聽' }, { base: 'live', past: 'lived', pp: 'lived', chinese: '居住' }, { base: 'look', past: 'looked', pp: 'looked', chinese: '看' }, { base: 'love', past: 'loved', pp: 'loved', chinese: '喜愛' }, { base: 'miss', past: 'missed', pp: 'missed', chinese: '想念' }, { base: 'mop', past: 'mopped', pp: 'mopped', chinese: '拖地' }, { base: 'move', past: 'moved', pp: 'moved', chinese: '移動' }, { base: 'need', past: 'needed', pp: 'needed', chinese: '需要' }, { base: 'notice', past: 'noticed', pp: 'noticed', chinese: '注意' }, { base: 'open', past: 'opened', pp: 'opened', chinese: '打開' }, { base: 'order', past: 'ordered', pp: 'ordered', chinese: '訂購' }, { base: 'pack', past: 'packed', pp: 'packed', chinese: '打包' }, { base: 'paint', past: 'painted', pp: 'painted', chinese: '畫圖' }, { base: 'pick', past: 'picked', pp: 'picked', chinese: '撿' }, { base: 'picnic', past: 'picnicked', pp: 'picnicked', chinese: '野餐' }, { base: 'plan', past: 'planned', pp: 'planned', chinese: '計劃' }, { base: 'plant', past: 'planted', pp: 'planted', chinese: '種植' }, { base: 'play', past: 'played', pp: 'played', chinese: '玩' }, { base: 'pollute', past: 'polluted', pp: 'polluted', chinese: '污染' }, { base: 'practice', past: 'practiced', pp: 'practiced', chinese: '練習' }, { base: 'prepare', past: 'prepared', pp: 'prepared', chinese: '準備' }, { base: 'preview', past: 'previewed', pp: 'previewed', chinese: '預習' }, { base: 'produce', past: 'produced', pp: 'produced', chinese: '製造' }, { base: 'provide', past: 'provided', pp: 'provided', chinese: '提供' }, { base: 'pull', past: 'pulled', pp: 'pulled', chinese: '拉' }, { base: 'push', past: 'pushed', pp: 'pushed', chinese: '推' }, { base: 'rain', past: 'rained', pp: 'rained', chinese: '下雨' }, { base: 'receive', past: 'received', pp: 'received', chinese: '收到' }, { base: 'recycle', past: 'recycled', pp: 'recycled', chinese: '回收' }, { base: 'reduce', past: 'reduced', pp: 'reduced', chinese: '減少' }, { base: 'relax', past: 'relaxed', pp: 'relaxed', chinese: '放鬆' }, { base: 'remember', past: 'remembered', pp: 'remembered', chinese: '記得' }, { base: 'repeat', past: 'repeated', pp: 'repeated', chinese: '重複' }, { base: 'rest', past: 'rested', pp: 'rested', chinese: '休息' }, { base: 'return', past: 'returned', pp: 'returned', chinese: '歸還' }, { base: 'reuse', past: 'reused', pp: 'reused', chinese: '再使用' }, { base: 'review', past: 'reviewed', pp: 'reviewed', chinese: '複習' }, { base: 'roll', past: 'rolled', pp: 'rolled', chinese: '滾動' }, { base: 'save', past: 'saved', pp: 'saved', chinese: '拯救' }, { base: 'scare', past: 'scared', pp: 'scared', chinese: '驚嚇' }, { base: 'scold', past: 'scolded', pp: 'scolded', chinese: '責罵' }, { base: 'share', past: 'shared', pp: 'shared', chinese: '分享' }, { base: 'shop', past: 'shipped', pp: 'shopped', chinese: '購物' }, { base: 'shout', past: 'shouted', pp: 'shouted', chinese: '喊叫' }, { base: 'show', past: 'showed', pp: 'shown', chinese: '顯示' }, { base: 'skip', past: 'skipped', pp: 'skipped', chinese: '略過' }, { base: 'smell', past: 'smelled', pp: 'smelled', chinese: '聞' }, { base: 'smile', past: 'smiled', pp: 'smiled', chinese: '微笑' }, { base: 'sort', past: 'sorted', pp: 'sorted', chinese: '分類' }, { base: 'sound', past: 'sounded', pp: 'sounded', chinese: '聽起來' }, { base: 'spell', past: 'spelled', pp: 'spelled', chinese: '拼字' }, { base: 'start', past: 'started', pp: 'started', chinese: '開始' }, { base: 'stay', past: 'stayed', pp: 'stayed', chinese: '停留' }, { base: 'stop', past: 'stopped', pp: 'stopped', chinese: '停止' }, { base: 'store', past: 'stored', pp: 'stored', chinese: '儲存' }, { base: 'stretch', past: 'stretched', pp: 'stretched', chinese: '伸展' }, { base: 'study', past: 'studied', pp: 'studied', chinese: '研讀' }, { base: 'sunburn', past: 'sunburned', pp: 'sunburned', chinese: '曬傷' }, { base: 'surf', past: 'surfed', pp: 'surfed', chinese: '衝浪' }, { base: 'talk', past: 'talked', pp: 'talked', chinese: '說話' }, { base: 'taste', past: 'tasted', pp: 'tasted', chinese: '嚐起來' }, { base: 'thank', past: 'thanked', pp: 'thanked', chinese: '謝謝' }, { base: 'touch', past: 'touched', pp: 'touched', chinese: '碰觸' }, { base: 'travel', past: 'traveled', pp: 'traveled', chinese: '旅行' }, { base: 'try', past: 'tried', pp: 'tried', chinese: '嘗試' }, { base: 'turn', past: 'turned', pp: 'turned', chinese: '轉彎' }, { base: 'use', past: 'used', pp: 'used', chinese: '使用' }, { base: 'visit', past: 'visited', pp: 'visited', chinese: '拜訪' }, { base: 'volunteer', past: 'volunteered', pp: 'volunteered', chinese: '自願' }, { base: 'wait', past: 'waited', pp: 'waited', chinese: '等待' }, { base: 'walk', past: 'walked', pp: 'walked', chinese: '走路' }, { base: 'want', past: 'wanted', pp: 'wanted', chinese: '想要' }, { base: 'wash', past: 'washed', pp: 'washed', chinese: '洗' }, { base: 'watch', past: 'watched', pp: 'watched', chinese: '觀看' }, { base: 'welcome', past: 'welcomed', pp: 'welcomed', chinese: '歡迎' }, { base: 'wipe', past: 'wiped', pp: 'wiped', chinese: '擦拭' }, { base: 'wish', past: 'wished', pp: 'wished', chinese: '希望' }, { base: 'work', past: 'worked', pp: 'worked', chinese: '工作' }, { base: 'worry', past: 'worried', pp: 'worried', chinese: '擔心' }, { base: 'be', past: 'was/were', pp: 'been', chinese: '是' }, { base: 'become', past: 'became', pp: 'become', chinese: '變成' }, { base: 'begin', past: 'began', pp: 'begun', chinese: '開始' }, { base: 'bite', past: 'bit', pp: 'bitten', chinese: '咬' }, { base: 'blow', past: 'blew', pp: 'blown', chinese: '吹' }, { base: 'break', past: 'broke', pp: 'broken', chinese: '打破' }, { base: 'bring', past: 'brought', pp: 'brought', chinese: '帶來' }, { base: 'build', past: 'built', pp: 'built', chinese: '建造' }, { base: 'buy', past: 'bought', pp: 'bought', chinese: '購買' }, { base: 'catch', past: 'caught', pp: 'caught', chinese: '抓住' }, { base: 'choose', past: 'chose', pp: 'chosen', chinese: '選擇' }, { base: 'come', past: 'came', pp: 'come', chinese: '來' }, { base: 'cost', past: 'cost', pp: 'cost', chinese: '花費' }, { base: 'cut', past: 'cut', pp: 'cut', chinese: '切' }, { base: 'dig', past: 'dug', pp: 'dug', chinese: '挖掘' }, { base: 'do', past: 'did', pp: 'done', chinese: '做' }, { base: 'draw', past: 'drew', pp: 'drawn', chinese: '畫' }, { base: 'drink', past: 'drank', pp: 'drunk', chinese: '喝' }, { base: 'drive', past: 'drove', pp: 'driven', chinese: '駕駛' }, { base: 'fall', past: 'fell', pp: 'fallen', chinese: '掉落' }, { base: 'feed', past: 'fed', pp: 'fed', chinese: '餵養' }, { base: 'feel', past: 'felt', pp: 'felt', chinese: '感覺' }, { base: 'fight', past: 'fought', pp: 'fought', chinese: '打架' }, { base: 'find', past: 'found', pp: 'found', chinese: '找到' }, { base: 'fly', past: 'flew', pp: 'flown', chinese: '飛' }, { base: 'forget', past: 'forgot', pp: 'forgotten', chinese: '忘記' }, { base: 'get', past: 'got', pp: 'gotten', chinese: '得到' }, { base: 'give', past: 'gave', pp: 'given', chinese: '給' }, { base: 'have', past: 'had', pp: 'had', chinese: '擁有' }, { base: 'hear', past: 'heard', pp: 'heard', chinese: '聽見' }, { base: 'hide', past: 'hid', pp: 'hidden', chinese: '藏' }, { base: 'hit', past: 'hit', pp: 'hit', chinese: '打擊' }, { base: 'hold', past: 'held', pp: 'held', chinese: '拿著' }, { base: 'hurt', past: 'hurt', pp: 'hurt', chinese: '受傷' }, { base: 'keep', past: 'kept', pp: 'kept', chinese: '保持' }, { base: 'know', past: 'knew', pp: 'known', chinese: '知道' }, { base: 'lead', past: 'led', pp: 'led', chinese: '導致' }, { base: 'leave', past: 'left', pp: 'left', chinese: '離開' }, { base: 'lend', past: 'lent', pp: 'lent', chinese: '借出' }, { base: 'let', past: 'let', pp: 'let', chinese: '讓' }, { base: 'lie', past: 'lay', pp: 'lain', chinese: '躺' }, { base: 'lose', past: 'lost', pp: 'lost', chinese: '遺失' }, { base: 'make', past: 'made', pp: 'made', chinese: '製作' }, { base: 'mean', past: 'meant', pp: 'meant', chinese: '意指' }, { base: 'meet', past: 'met', pp: 'met', chinese: '遇見' }, { base: 'pay', past: 'paid', pp: 'paid', chinese: '付費' }, { base: 'put', past: 'put', pp: 'put', chinese: '放' }, { base: 'read', past: 'read', pp: 'read', chinese: '閱讀' }, { base: 'ride', past: 'rode', pp: 'ridden', chinese: '騎' }, { base: 'ring', past: 'rang', pp: 'rung', chinese: '響鈴' }, { base: 'run', past: 'ran', pp: 'run', chinese: '跑' }, { base: 'say', past: 'said', pp: 'said', chinese: '說' }, { base: 'sell', past: 'sold', pp: 'sold', chinese: '賣' }, { base: 'send', past: 'sent', pp: 'sent', chinese: '送' }, { base: 'shake', past: 'shook', pp: 'shaken', chinese: '搖動' }, { base: 'shoot', past: 'shot', pp: 'shot', chinese: '投籃' }, { base: 'sing', past: 'sang', pp: 'sung', chinese: '唱歌' }, { base: 'sit', past: 'sat', pp: 'sat', chinese: '坐' }, { base: 'sleep', past: 'slept', pp: 'slept', chinese: '睡覺' }, { base: 'speak', past: 'spoke', pp: 'spoken', chinese: '說話' }, { base: 'spend', past: 'spent', pp: 'spent', chinese: '花費' }, { base: 'stand', past: 'stood', pp: 'stood', chinese: '站立' }, { base: 'swim', past: 'swam', pp: 'swum', chinese: '游泳' }, { base: 'teach', past: 'taught', pp: 'taught', chinese: '教導' }, { base: 'tell', past: 'told', pp: 'told', chinese: '告訴' }, { base: 'think', past: 'thought', pp: 'thought', chinese: '想' }, { base: 'throw', past: 'threw', pp: 'thrown', chinese: '丟' }, { base: 'wake', past: 'woke', pp: 'woken', chinese: '醒來' }, { base: 'wear', past: 'wore', pp: 'worn', chinese: '穿' }, { base: 'win', past: 'won', pp: 'won', chinese: '贏' }
+        ];
+
+        // --- SCRIPT LOGIC ---
+        let gameState = { totalScore: 0, unlockedCollectibles: [] };
+        let currentLevelId = null;
+        let currentVerbs = [];
+        let newItemQueue = [];
+        let isSoundOn = true;
+        let synthesisVoice = null;
+        
+        // Views and UI elements
+        const homeView = document.getElementById('home-view');
+        const wordListView = document.getElementById('word-list-view');
+        const flashcardView = document.getElementById('flashcard-view');
+        const memoryGameView = document.getElementById('memory-game-view');
+        const triadSelectView = document.getElementById('triad-select-view');
+        const spellingGameView = document.getElementById('spelling-game-view');
+        const tenseQuizView = document.getElementById('tense-quiz-view');
+        const allViews = [homeView, wordListView, flashcardView, memoryGameView, triadSelectView, spellingGameView, tenseQuizView];
+
+        const totalScoreDisplay = document.getElementById('total-score');
+        const resultsModal = document.getElementById('results-modal');
+        const collectionModal = document.getElementById('collection-modal');
+        const newItemModal = document.getElementById('new-item-modal');
+        const sheetGeneratorModal = document.getElementById('sheet-generator-modal');
+        const printableViewModel = document.getElementById('printable-view-modal');
+        const gameButtons = document.querySelectorAll('#game-buttons-container button');
+
+        function createVerbLevels(verbs, chunkSize) {
+            const levels = {};
+            for (let i = 0; i < verbs.length; i += chunkSize) {
+                const chunk = verbs.slice(i, i + chunkSize);
+                const levelId = `level${(i / chunkSize) + 1}`;
+                levels[levelId] = { name: `案件檔案 #${(i / chunkSize) + 1}`, verbs: chunk };
+            }
+            return levels;
+        }
+        const verbLevels = createVerbLevels(allVerbs, 10);
+
+        function saveState() { localStorage.setItem('verbDetectiveState', JSON.stringify(gameState)); }
+        
+        function loadState() {
+            const savedState = localStorage.getItem('verbDetectiveState');
+            if (savedState) {
+                gameState = JSON.parse(savedState);
+                if (!Array.isArray(gameState.unlockedCollectibles)) gameState.unlockedCollectibles = [];
+            }
+            totalScoreDisplay.textContent = gameState.totalScore;
+        }
+
+        function updateScore(points) {
+            const oldScore = gameState.totalScore;
+            gameState.totalScore += points;
+            totalScoreDisplay.textContent = gameState.totalScore;
+            
+            collectibles.forEach(item => {
+                if (oldScore < item.score && gameState.totalScore >= item.score) {
+                    if (!gameState.unlockedCollectibles.includes(item.id)) {
+                        gameState.unlockedCollectibles.push(item.id);
+                        newItemQueue.push(item);
+                    }
+                }
+            });
+
+            if (newItemQueue.length > 0 && !newItemModal.classList.contains('show')) {
+                showNextItemInQueue();
+            }
+            saveState();
+        }
+
+        function showNextItemInQueue() {
+            if (newItemQueue.length > 0) {
+                const itemToShow = newItemQueue.shift();
+                showNewItemModal(itemToShow);
+            }
+        }
+
+        function showView(viewToShow) {
+            allViews.forEach(v => v.classList.add('hidden'));
+            viewToShow.classList.remove('hidden');
+        }
+
+        function populateLevelSelect() {
+            const select = document.getElementById('level-select');
+            select.innerHTML = '<option value="">請選擇一個案件檔案...</option>';
+            select.innerHTML += '<option value="all">動詞三態總表</option>';
+            Object.keys(verbLevels).forEach(levelId => {
+                select.innerHTML += `<option value="${levelId}">${verbLevels[levelId].name}</option>`;
+            });
+        }
+        
+        function initializeSpeechSynthesis() {
+            if (!('speechSynthesis' in window)) return;
+
+            const setVoice = () => {
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    // Prefer Google voices, then other high-quality 'en-US' voices
+                    synthesisVoice = voices.find(voice => voice.name.includes('Google') && voice.lang === 'en-US') ||
+                                     voices.find(voice => voice.lang === 'en-US');
+                }
+            };
+
+            setVoice();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = setVoice;
+            }
+        }
+
+        function speak(text) {
+            if (!isSoundOn || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            if (synthesisVoice) {
+                utterance.voice = synthesisVoice;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function speakTriad(base, past, pp) {
+            if (!isSoundOn || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            
+            const utterance1 = new SpeechSynthesisUtterance(base);
+            utterance1.lang = 'en-US';
+            const utterance2 = new SpeechSynthesisUtterance(past.split('/')[0]);
+            utterance2.lang = 'en-US';
+            const utterance3 = new SpeechSynthesisUtterance(pp.split('/')[0]);
+            utterance3.lang = 'en-US';
+            
+            if (synthesisVoice) {
+                utterance1.voice = synthesisVoice;
+                utterance2.voice = synthesisVoice;
+                utterance3.voice = synthesisVoice;
+            }
+            
+            utterance1.onend = () => { if(isSoundOn) window.speechSynthesis.speak(utterance2); };
+            utterance2.onend = () => { if(isSoundOn) window.speechSynthesis.speak(utterance3); };
+            
+            window.speechSynthesis.speak(utterance1);
+        }
+
+        function showWordList(levelId) {
+            const isAll = levelId === 'all';
+            const verbsToShow = isAll ? allVerbs : verbLevels[levelId].verbs;
+            const title = isAll ? '動詞三態總表' : `${verbLevels[levelId].name} - 單字列表`;
+            
+            document.getElementById('word-list-title').textContent = title;
+            const tbody = document.getElementById('word-list-body');
+            tbody.innerHTML = verbsToShow.map((v, index) => `
+                <tr class="odd:bg-white even:bg-slate-50">
+                    <td class="p-2 border-b font-bold">${index + 1}</td>
+                    <td class="p-2 border-b"><svg onclick="speakTriad('${v.base}', '${v.past}', '${v.pp}')" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cursor-pointer text-blue-500 hover:text-blue-700"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg></td>
+                    <td class="p-2 border-b">${v.base}</td><td class="p-2 border-b">${v.past}</td><td class="p-2 border-b">${v.pp}</td><td class="p-2 border-b">${v.chinese}</td>
+                </tr>`).join('');
+            showView(wordListView);
+        }
+        
+        function showCollection() {
+            const grid = document.getElementById('collection-grid');
+            grid.innerHTML = collectibles.map(c => {
+                const isUnlocked = gameState.unlockedCollectibles.includes(c.id);
+                return `
+                <div class="collection-item ${isUnlocked ? 'unlocked' : ''} p-2 rounded-lg text-center transition-all duration-300">
+                    <img src="${c.img}" alt="${c.name}" class="w-24 h-24 mx-auto object-contain mb-2" onerror="this.onerror=null;this.src='https://img.icons8.com/plasticine/100/000000/detective.png';">
+                    <p class="font-bold">${c.name}</p><p class="text-xs text-gray-500">${isUnlocked ? '已獲得' : `需 ${c.score} 積分`}</p>
+                </div>`;
+            }).join('');
+            collectionModal.classList.add('show');
+        }
+        
+        function showNewItemModal(item) {
+            document.getElementById('new-item-image').src = item.img;
+            document.getElementById('new-item-name').textContent = item.name;
+            newItemModal.classList.add('show');
+        }
+        
+        function showResults(title, message, score, retryCallback) {
+            document.getElementById('results-title').textContent = title;
+            document.getElementById('results-message').textContent = message;
+            document.getElementById('results-score').textContent = score;
+            document.getElementById('modal-retry-btn').onclick = () => { resultsModal.classList.remove('show'); retryCallback(); };
+            resultsModal.classList.add('show');
+        }
+
+        // --- FLASHCARD GAME ---
+        let flashcardIndex = 0;
+        const flashcardElem = document.getElementById('flashcard');
+        
+        function startFlashcardGame() {
+            flashcardIndex = 0;
+            currentVerbs = shuffleArray(verbLevels[currentLevelId].verbs);
+            showView(flashcardView);
+            document.getElementById('flashcard-title').textContent = `${verbLevels[currentLevelId].name} - 線索卡片`;
+            displayFlashcard();
+        }
+        function displayFlashcard() {
+            flashcardElem.classList.remove('is-flipped');
+            const verb = currentVerbs[flashcardIndex];
+            setTimeout(() => {
+                document.getElementById('flashcard-front-text').textContent = verb.base;
+                document.getElementById('flashcard-back-text').innerHTML = `<p class="text-2xl">${verb.past} / ${verb.pp}</p><p class="text-3xl font-bold mt-2">${verb.chinese}</p>`;
+                document.getElementById('flashcard-progress').textContent = `線索 ${flashcardIndex + 1} / ${currentVerbs.length}`;
+            }, 300);
+        }
+        
+        // --- MEMORY MATCH GAME ---
+        let memoryGameData = { cards: [], flippedCards: [], moves: 0, matchedPairs: 0, totalPairs: 0, lockBoard: false };
+
+        function startMemoryGame() {
+            memoryGameData = { cards: [], flippedCards: [], moves: 0, matchedPairs: 0, totalPairs: 0, lockBoard: false };
+            showView(memoryGameView);
+            document.getElementById('memory-title').textContent = `${verbLevels[currentLevelId].name} - 動詞對對碰`;
+            
+            const verbsForGame = shuffleArray([...verbLevels[currentLevelId].verbs]).slice(0, 8);
+            memoryGameData.totalPairs = verbsForGame.length;
+            
+            verbsForGame.forEach(verb => {
+                memoryGameData.cards.push({ value: verb.base, matchId: verb.base });
+                memoryGameData.cards.push({ value: verb.past.split('/')[0], matchId: verb.base });
+            });
+            memoryGameData.cards = shuffleArray(memoryGameData.cards);
+            
+            const grid = document.getElementById('memory-grid');
+            grid.innerHTML = '';
+            memoryGameData.cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('memory-card');
+                cardElement.dataset.index = index;
+                cardElement.innerHTML = `
+                    <div class="memory-card-face memory-card-back">?</div>
+                    <div class="memory-card-face memory-card-front">${card.value}</div>
+                `;
+                cardElement.addEventListener('click', handleMemoryCardClick);
+                grid.appendChild(cardElement);
+            });
+            
+            updateMemoryUI();
+        }
+        
+        function updateMemoryUI() {
+            document.getElementById('memory-pairs-matched').textContent = memoryGameData.matchedPairs;
+            document.getElementById('memory-total-pairs').textContent = memoryGameData.totalPairs;
+            document.getElementById('memory-moves').textContent = memoryGameData.moves;
+        }
+
+        function handleMemoryCardClick(event) {
+            if (memoryGameData.lockBoard) return;
+            const clickedCard = event.currentTarget;
+            if (clickedCard.classList.contains('is-flipped')) return;
+
+            const cardIndex = clickedCard.dataset.index;
+            const cardData = memoryGameData.cards[cardIndex];
+
+            clickedCard.classList.add('is-flipped');
+            memoryGameData.flippedCards.push({element: clickedCard, data: cardData});
+
+            if (memoryGameData.flippedCards.length === 2) {
+                memoryGameData.moves++;
+                updateMemoryUI();
+                memoryGameData.lockBoard = true;
+                checkMemoryMatch();
+            }
+        }
+
+        function checkMemoryMatch() {
+            const [firstCard, secondCard] = memoryGameData.flippedCards;
+            if (firstCard.data.matchId === secondCard.data.matchId) {
+                // Match!
+                memoryGameData.matchedPairs++;
+                updateMemoryUI();
+                firstCard.element.classList.add('is-matched');
+                secondCard.element.classList.add('is-matched');
+                memoryGameData.flippedCards = [];
+                memoryGameData.lockBoard = false;
+
+                if (memoryGameData.matchedPairs === memoryGameData.totalPairs) {
+                    setTimeout(endMemoryGame, 500);
+                }
+            } else {
+                // No match
+                setTimeout(() => {
+                    firstCard.element.classList.remove('is-flipped');
+                    secondCard.element.classList.remove('is-flipped');
+                    memoryGameData.flippedCards = [];
+                    memoryGameData.lockBoard = false;
+                }, 1000);
+            }
+        }
+        
+        function endMemoryGame() {
+            const score = Math.max(10, (memoryGameData.totalPairs * 20) - ((memoryGameData.moves - memoryGameData.totalPairs) * 5));
+            updateScore(score);
+            showResults('配對成功！', `你用了 ${memoryGameData.moves} 次移動完成遊戲。`, score, startMemoryGame);
+        }
+
+
+        // --- TRIAD SELECT GAME ---
+        let triadQuestions = [], currentTriadIndex = 0, triadScore = 0, triadStep = 0;
+
+        function startTriadSelectGame() {
+            currentTriadIndex = 0; triadScore = 0;
+            triadQuestions = generateTriadQuestions();
+            showView(triadSelectView);
+            document.getElementById('triad-title').textContent = `${verbLevels[currentLevelId].name} - 關鍵指證`;
+            updateSoundToggleUI();
+            displayTriadQuestion();
+        }
+        function generateTriadQuestions() {
+            const questions = [];
+            const shuffledVerbs = shuffleArray(verbLevels[currentLevelId].verbs);
+            for (const verb of shuffledVerbs) {
+                const correctAnswers = [verb.past.split('/')[0], verb.pp.split('/')[0]];
+                let decoys = new Set();
+                if (!verb.past.endsWith('ed') && !verb.past.endsWith('t')) decoys.add(verb.base + 'ed');
+                while(decoys.size < 3) {
+                    const randomVerb = allVerbs[Math.floor(Math.random() * allVerbs.length)];
+                    const randomForm = [randomVerb.past, randomVerb.pp][Math.floor(Math.random()*2)].split('/')[0];
+                    if(!correctAnswers.includes(randomForm) && randomForm !== verb.base) decoys.add(randomForm);
+                }
+                questions.push({ prompt: verb.base, options: shuffleArray([...correctAnswers, ...decoys]), answers: correctAnswers });
+            }
+            return questions;
+        }
+        function displayTriadQuestion() {
+            if (currentTriadIndex >= triadQuestions.length) { endTriadSelectGame(); return; }
+            triadStep = 0;
+            document.getElementById('triad-progress').textContent = `${currentTriadIndex + 1} / ${triadQuestions.length}`;
+            document.getElementById('triad-score').textContent = triadScore;
+            document.getElementById('triad-feedback').textContent = '';
+            const q = triadQuestions[currentTriadIndex];
+            document.getElementById('triad-prompt-verb').textContent = q.prompt;
+            document.getElementById('triad-past-answer').textContent = '____';
+            document.getElementById('triad-pp-answer').textContent = '____';
+            const optionsContainer = document.getElementById('triad-options');
+            optionsContainer.innerHTML = q.options.map(opt => `<button class="btn btn-secondary triad-btn p-4 text-lg">${opt}</button>`).join('');
+            optionsContainer.querySelectorAll('button').forEach((btn, i) => btn.onclick = () => checkTriadAnswer(btn, q.options[i]));
+        }
+        function checkTriadAnswer(btn, answer) {
+            speak(answer);
+            if (btn.disabled) return;
+            const q = triadQuestions[currentTriadIndex];
+            const correctPast = q.answers[0], correctPP = q.answers[1];
+            document.getElementById('triad-feedback').textContent = '';
+
+            if (triadStep === 0) {
+                if (answer === correctPast) {
+                    btn.classList.add('correct');
+                    btn.disabled = true;
+                    document.getElementById('triad-past-answer').textContent = answer;
+                    triadStep = 1;
+                } else {
+                    btn.classList.add('incorrect');
+                    btn.disabled = true;
+                }
+            } else if (triadStep === 1) {
+                if (answer === correctPP) {
+                    btn.classList.add('correct');
+                    document.getElementById('triad-pp-answer').textContent = answer;
+                    handleCorrectTriad();
+                } else {
+                    btn.classList.add('incorrect');
+                    btn.disabled = true;
+                }
+            }
+        }
+        function handleCorrectTriad() {
+            triadScore += 10;
+            document.getElementById('triad-feedback').innerHTML = `<span class="text-green-500">✅ 正確！</span>`;
+            document.querySelectorAll('#triad-options button').forEach(b => b.disabled = true);
+            setTimeout(() => { currentTriadIndex++; displayTriadQuestion(); }, 1500);
+        }
+        function endTriadSelectGame() {
+            updateScore(triadScore);
+            showResults('調查完成！', `你的最終分數是 ${triadScore}`, triadScore, startTriadSelectGame);
+        }
+        
+        // --- SPELLING GAME ---
+        let spellingQuestions = [], currentSpellingIndex = 0, spellingScore = 0, hintUsed = false;
+        
+        function startSpellingGame() {
+            currentSpellingIndex = 0; spellingScore = 0;
+            spellingQuestions = generateSpellingQuestions();
+            showView(spellingGameView);
+            document.getElementById('spelling-title').textContent = `${verbLevels[currentLevelId].name} - 密碼破解`;
+            displaySpellingQuestion();
+        }
+        function generateSpellingQuestions() {
+            const questions = [];
+            const shuffledVerbs = shuffleArray(verbLevels[currentLevelId].verbs);
+            shuffledVerbs.forEach(verb => {
+                const blankIndex = Math.floor(Math.random() * 3);
+                questions.push({ verb: verb, blankIndex: blankIndex });
+            });
+            return questions;
+        }
+        function displaySpellingQuestion() {
+            if (currentSpellingIndex >= spellingQuestions.length) { endSpellingGame(); return; }
+            hintUsed = false;
+            document.getElementById('spelling-progress').textContent = `${currentSpellingIndex + 1} / ${spellingQuestions.length}`;
+            document.getElementById('spelling-score').textContent = spellingScore;
+            document.getElementById('spelling-feedback').textContent = '';
+            document.getElementById('spelling-hint-btn').disabled = false;
+            document.getElementById('spelling-submit-btn').disabled = false;
+            const q = spellingQuestions[currentSpellingIndex];
+            const forms = [q.verb.base, q.verb.past, q.verb.pp];
+            const promptContainer = document.getElementById('spelling-prompt');
+            promptContainer.innerHTML = forms.map((form, i) => {
+                if (i === q.blankIndex) {
+                    return `<input type="text" id="spelling-input" class="spelling-input w-36" autocomplete="off">`;
+                }
+                return `<span>${form}</span>`;
+            }).join(', ');
+            
+            const input = document.getElementById('spelling-input');
+            input.focus();
+            input.addEventListener('keydown', (e) => { if(e.key === 'Enter') checkSpellingAnswer(); });
+        }
+        function checkSpellingAnswer() {
+            const input = document.getElementById('spelling-input');
+            if(!input || input.disabled) return;
+            const q = spellingQuestions[currentSpellingIndex];
+            const forms = [q.verb.base, q.verb.past, q.verb.pp];
+            const correctAnswer = forms[q.blankIndex].split('/')[0];
+            
+            if (input.value.trim().toLowerCase() === correctAnswer.toLowerCase()) {
+                spellingScore += hintUsed ? 5 : 10;
+                document.getElementById('spelling-feedback').innerHTML = `<span class="text-green-500">✅ 正確！ ${hintUsed ? '+5' : '+10'}</span>`;
+                input.disabled = true;
+                document.getElementById('spelling-hint-btn').disabled = true;
+                document.getElementById('spelling-submit-btn').disabled = true;
+                setTimeout(() => { currentSpellingIndex++; displaySpellingQuestion(); }, 1500);
+            } else {
+                 document.getElementById('spelling-feedback').innerHTML = `<span class="text-red-500">❌ 錯誤！</span>`;
+            }
+        }
+        function giveSpellingHint() {
+            const q = spellingQuestions[currentSpellingIndex];
+            const forms = [q.verb.base, q.verb.past, q.verb.pp];
+            const correctAnswer = forms[q.blankIndex].split('/')[0];
+            const input = document.getElementById('spelling-input');
+            const currentValue = input.value;
+            
+            let nextCharIndex = 0;
+            while(nextCharIndex < currentValue.length && nextCharIndex < correctAnswer.length && currentValue[nextCharIndex].toLowerCase() === correctAnswer[nextCharIndex].toLowerCase()) {
+                nextCharIndex++;
+            }
+
+            if (nextCharIndex < correctAnswer.length) {
+                input.value = correctAnswer.substring(0, nextCharIndex + 1);
+            }
+            
+            hintUsed = true;
+            input.focus();
+        }
+        function endSpellingGame() {
+            updateScore(spellingScore);
+            showResults('破解完成！', `你的最終分數是 ${spellingScore}`, spellingScore, startSpellingGame);
+        }
+        
+        // --- TENSE QUIZ GAME ---
+        let tenseQuizQuestions = [], currentTenseQuizIndex = 0, tenseQuizScore = 0;
+        
+        function startTenseQuizGame() {
+            currentTenseQuizIndex = 0;
+            tenseQuizScore = 0;
+            tenseQuizQuestions = generateTenseQuizQuestions();
+            showView(tenseQuizView);
+            document.getElementById('tense-quiz-title').textContent = `${verbLevels[currentLevelId].name} - 時態測驗`;
+            displayTenseQuizQuestion();
+        }
+
+        function generateTenseQuizQuestionForVerb(verb) {
+            const { base, past, pp } = verb;
+            const tenses = [
+                { tense: 'past', answer: past.split('/')[0], templates: [ `He _______ (${base}) to school yesterday.`, `She _______ (${base}) a delicious cake last night.`, `They _______ (${base}) a new car last month.`, `I _______ (${base}) my friend at the park yesterday afternoon.` ] },
+                { tense: 'perfect', answer: pp.split('/')[0], templates: [ `Have you ever _______ (${base}) to Japan?`, `She has already _______ (${base}) her homework.`, `They have _______ (${base}) in this house for ten years.`, `He hasn't _______ (${base}) the movie yet.` ] },
+                { tense: 'present', answer: base, templates: [ `They usually _______ (${base}) TV in the evening.`, `Please _______ (${base}) the door.`, `Let's _______ (${base}) basketball after school.`, `I _______ (${base}) my teeth every morning.` ] }
+            ];
+            
+            const chosenTense = tenses[Math.floor(Math.random() * tenses.length)];
+            const sentence = chosenTense.templates[Math.floor(Math.random() * chosenTense.templates.length)];
+            const answer = chosenTense.answer;
+
+            let distractors = new Set([base, past.split('/')[0], pp.split('/')[0]]);
+            if (!base.endsWith('s')) distractors.add(base + 's');
+            else distractors.add(base + 'ed');
+            distractors.delete(answer);
+            
+            const shuffledDistractors = shuffleArray(Array.from(distractors));
+            let options = shuffleArray([answer, ...shuffledDistractors.slice(0, 3)]);
+            
+            while(new Set(options).size < 4) {
+                const randomVerb = allVerbs[Math.floor(Math.random() * allVerbs.length)];
+                const randomForm = [randomVerb.base, randomVerb.past, randomVerb.pp][Math.floor(Math.random()*3)].split('/')[0];
+                if (!options.includes(randomForm)) options.push(randomForm);
+                options = [...new Set(options)];
+            }
+
+            return { sentence, options: options.slice(0,4), answer };
+        }
+
+        function generateTenseQuizQuestions() {
+            const questions = [];
+            const verbsForQuiz = shuffleArray([...verbLevels[currentLevelId].verbs]);
+            for (let i = 0; i < 10 && i < verbsForQuiz.length; i++) {
+                questions.push(generateTenseQuizQuestionForVerb(verbsForQuiz[i]));
+            }
+            return questions;
+        }
+
+        function displayTenseQuizQuestion() {
+            const progress = document.getElementById('tense-quiz-progress');
+            const sentenceEl = document.getElementById('tense-quiz-sentence');
+            const optionsContainer = document.getElementById('tense-quiz-options');
+            const feedbackEl = document.getElementById('tense-quiz-feedback');
+
+            if (currentTenseQuizIndex >= tenseQuizQuestions.length) {
+                endTenseQuizGame();
+                return;
+            }
+            feedbackEl.textContent = '';
+            progress.textContent = `${currentTenseQuizIndex + 1} / ${tenseQuizQuestions.length}`;
+            const q = tenseQuizQuestions[currentTenseQuizIndex];
+            sentenceEl.textContent = q.sentence;
+            optionsContainer.innerHTML = '';
+            q.options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-secondary triad-btn p-4 text-lg';
+                btn.textContent = option;
+                btn.onclick = () => checkTenseQuizAnswer(btn, option);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkTenseQuizAnswer(selectedBtn, selectedOption) {
+            const optionsContainer = document.getElementById('tense-quiz-options');
+            const feedbackEl = document.getElementById('tense-quiz-feedback');
+            const correctAnswer = tenseQuizQuestions[currentTenseQuizIndex].answer;
+
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.disabled = true;
+                if(btn.textContent === correctAnswer) btn.classList.add('correct');
+            });
+
+            if (selectedOption === correctAnswer) {
+                tenseQuizScore += 10;
+                feedbackEl.innerHTML = `<span class="text-green-500">✅ 正確！</span>`;
+            } else {
+                selectedBtn.classList.add('incorrect');
+                feedbackEl.innerHTML = `<span class="text-red-500">❌ 錯誤！答案是: ${correctAnswer}</span>`;
+            }
+
+            setTimeout(() => {
+                currentTenseQuizIndex++;
+                displayTenseQuizQuestion();
+            }, 2000);
+        }
+
+        function endTenseQuizGame() {
+            updateScore(tenseQuizScore);
+            showResults('時態測驗結束！', `你答對了 ${tenseQuizScore / 10} / ${tenseQuizQuestions.length} 題`, tenseQuizScore, startTenseQuizGame);
+        }
+
+        // --- Printable Sheet Functions ---
+        function showSheetGenerator() {
+            const select = document.getElementById('sheet-level-select');
+            select.innerHTML = '<option value="">請選擇一個案件檔案...</option>';
+            Object.keys(verbLevels).forEach(levelId => {
+                select.innerHTML += `<option value="${levelId}">${verbLevels[levelId].name}</option>`;
+            });
+            sheetGeneratorModal.classList.add('show');
+        }
+
+        function generateAndShowSheet() {
+            const levelId = document.getElementById('sheet-level-select').value;
+            if (!levelId) return;
+            const sheetHTML = generatePrintableSheet(levelId);
+            document.getElementById('printable-content').innerHTML = sheetHTML;
+            sheetGeneratorModal.classList.remove('show');
+            printableViewModel.classList.add('show');
+        }
+        
+        function generateSentenceForWorksheet(verb) {
+            const base = verb.base;
+            const templates = [
+                `She _______ (${base}) her homework last night.`,
+                `They _______ (${base}) to the museum yesterday.`,
+                `I _______ (${base}) a strange noise a minute ago.`,
+                `He _______ (${base}) a letter to his friend last week.`,
+                `Have you ever _______ (${base}) this book?`,
+                `She has already _______ (${base}) her lunch.`,
+                `He hasn't _______ (${base}) the work yet.`,
+                `I have _______ (${base}) this movie three times.`,
+                `Please _______ (${base}) the window.`,
+                `Let's _______ (${base}) a song together.`,
+                `This cake was _______ (${base}) by my mother.`,
+                `The song was _______ (${base}) by a famous singer.`
+            ];
+            return templates[Math.floor(Math.random() * templates.length)];
+        }
+
+        function generatePrintableSheet(levelId) {
+            let verbsForSheet = shuffleArray([...verbLevels[levelId].verbs]);
+            
+            let part1HTML = `<h3>第一部分：請填寫動詞三態 (共 ${verbsForSheet.length} 題)</h3><ol style="list-style-type: decimal; padding-left: 20px;">`;
+            verbsForSheet.forEach(verb => {
+                part1HTML += `<li style="margin-bottom: 8px; font-size: 1.1em;">${verb.base} &rarr; <span style="display: inline-block; width: 100px; border-bottom: 1px solid black;"></span> &rarr; <span style="display: inline-block; width: 100px; border-bottom: 1px solid black;"></span></li>`;
+            });
+            part1HTML += '</ol>';
+
+            let part2HTML = `<h3 style="margin-top: 24px; page-break-before: always;">第二部分：句子填空 (共 ${verbsForSheet.length} 題)</h3><ol style="list-style-type: decimal; padding-left: 20px;">`;
+            verbsForSheet.forEach(verb => {
+                const sentence = generateSentenceForWorksheet(verb);
+                part2HTML += `<li style="margin-bottom: 12px; font-size: 1.1em;">${sentence.replace(/_______/, '<span style="display: inline-block; width: 120px; border-bottom: 1px solid black;"></span>')}</li>`;
+            });
+            part2HTML += '</ol>';
+
+            const header = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="font-size: 1.5rem; font-weight: bold;">名偵探動詞事件簿 - 溫習卷 (${verbLevels[levelId].name})</h1>
+                    <div style="display: flex; justify-content: space-between; margin-top: 16px; border-bottom: 1px solid black; padding-bottom: 8px;">
+                        <span>姓名: _______________</span>
+                        <span>日期: _______________</span>
+                        <span>得分: _______________</span>
+                    </div>
+                </div>`;
+            
+            return header + part1HTML + part2HTML;
+        }
+
+
+        // --- UTILITY ---
+        function shuffleArray(array) {
+            let newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; }
+            return newArr;
+        }
+
+        function updateSoundToggleUI() {
+            const soundBtn = document.getElementById('triad-sound-toggle');
+            if(isSoundOn) {
+                soundBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+            } else {
+                soundBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+            }
+        }
+
+        // --- EVENT LISTENERS & INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSpeechSynthesis();
+            loadState();
+            populateLevelSelect();
+            showView(homeView);
+
+            document.getElementById('level-select').addEventListener('change', (e) => {
+                const selected = e.target.value;
+                if (selected) {
+                    gameButtons.forEach(btn => btn.disabled = false);
+                    if (selected === 'all') {
+                        document.getElementById('start-list-btn').textContent = "動詞三態總表";
+                        ['start-flashcard-btn', 'start-memory-btn', 'start-triad-btn', 'start-spelling-btn', 'start-tense-quiz-btn'].forEach(id => document.getElementById(id).disabled = true);
+                    } else {
+                         document.getElementById('start-list-btn').textContent = "單字列表";
+                    }
+                } else {
+                    gameButtons.forEach(btn => btn.disabled = true);
+                }
+            });
+
+            document.getElementById('start-list-btn').onclick = () => showWordList(document.getElementById('level-select').value);
+            document.getElementById('start-flashcard-btn').onclick = () => { currentLevelId = document.getElementById('level-select').value; startFlashcardGame(); };
+            document.getElementById('start-memory-btn').onclick = () => { currentLevelId = document.getElementById('level-select').value; startMemoryGame(); };
+            document.getElementById('start-triad-btn').onclick = () => { currentLevelId = document.getElementById('level-select').value; startTriadSelectGame(); };
+            document.getElementById('start-spelling-btn').onclick = () => { currentLevelId = document.getElementById('level-select').value; startSpellingGame(); };
+            document.getElementById('start-tense-quiz-btn').onclick = () => { currentLevelId = document.getElementById('level-select').value; startTenseQuizGame(); };
+            
+            document.getElementById('show-collection-btn').onclick = showCollection;
+            document.getElementById('close-collection-modal').onclick = () => collectionModal.classList.remove('show');
+            document.getElementById('close-new-item-modal').onclick = () => {
+                newItemModal.classList.remove('show');
+                setTimeout(showNextItemInQueue, 300);
+            };
+            
+            document.querySelectorAll('.back-btn').forEach(btn => btn.onclick = () => showView(homeView));
+            document.getElementById('modal-menu-btn').onclick = () => { resultsModal.classList.remove('show'); showView(homeView); };
+            document.getElementById('next-card-btn').onclick = () => { flashcardIndex = (flashcardIndex + 1) % currentVerbs.length; displayFlashcard(); };
+            document.getElementById('prev-card-btn').onclick = () => { flashcardIndex = (flashcardIndex - 1 + currentVerbs.length) % currentVerbs.length; displayFlashcard(); };
+            flashcardElem.onclick = () => flashcardElem.classList.toggle('is-flipped');
+            document.getElementById('spelling-hint-btn').onclick = giveSpellingHint;
+            document.getElementById('spelling-submit-btn').onclick = checkSpellingAnswer;
+            document.getElementById('triad-sound-toggle').onclick = () => { isSoundOn = !isSoundOn; updateSoundToggleUI(); };
+            
+            // Printable sheet listeners
+            document.getElementById('generate-sheet-btn').onclick = showSheetGenerator;
+            document.getElementById('close-sheet-modal-btn').onclick = () => sheetGeneratorModal.classList.remove('show');
+            document.getElementById('generate-sheet-confirm-btn').onclick = generateAndShowSheet;
+            document.getElementById('close-printable-modal-btn').onclick = () => printableViewModel.classList.remove('show');
+            document.getElementById('print-sheet-btn').onclick = () => window.print();
+        });
+    </script>
+
+
+
+<div id="tag-inspector-tooltip" style="display: none; left: 335px; top: 478px;">div</div>
+</body>
+</html>
